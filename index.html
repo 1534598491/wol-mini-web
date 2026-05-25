@@ -252,24 +252,23 @@
 
         const STORAGE_KEY = 'wol-mini-config';
 
-        // 自动重新登录
+        // 自动重新登录（静默模式）
         function autoConnect(savedDeviceId, savedToken) {
             deviceId = savedDeviceId;
             token = savedToken;
 
-            const btn = document.getElementById('connectBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 自动连接...';
+            // 直接显示主面板，后台验证
+            showMainPanel();
+            updateMqttStatus('connecting');
 
             deviceVerified = false;
-            updateMqttStatus('connecting');
 
             const clientId = 'web-' + Math.random().toString(16).substr(2, 8);
             mqttClient = mqtt.connect(MQTT_BROKER, {
                 clientId: clientId,
                 clean: true,
                 connectTimeout: 5000,
-                reconnectPeriod: 0  // 不自动重连，超时后彻底断开
+                reconnectPeriod: 5000  // 验证后自动重连
             });
 
             mqttClient.on('connect', () => {
@@ -278,22 +277,17 @@
                 const statusTopic = `wol/${deviceId}/status`;
                 mqttClient.subscribe(statusTopic, { qos: 1 });
 
+                // 发送验证请求
                 const controlTopic = `wol/${deviceId}/control`;
                 const verifyMsg = { action: 'ping', token: token, timestamp: Math.floor(Date.now() / 1000) };
                 mqttClient.publish(controlTopic, JSON.stringify(verifyMsg), { qos: 1 });
 
                 verifyTimeout = setTimeout(() => {
                     if (!deviceVerified) {
-                        showToast('设备未响应，请检查设备ID和Token', 'error');
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 连接';
                         updateMqttStatus('disconnected');
-                        if (mqttClient) {
-                            mqttClient.end(true);  // 强制断开
-                            mqttClient = null;
-                        }
+                        showToast('设备未响应', 'error');
                     }
-                }, 3000);
+                }, 5000);
             });
 
             mqttClient.on('message', (topic, message) => {
@@ -307,15 +301,13 @@
 
             mqttClient.on('error', (err) => {
                 console.error('MQTT错误:', err);
-                showToast('连接失败', 'error');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 连接';
                 updateMqttStatus('disconnected');
             });
 
             mqttClient.on('close', () => {
                 console.log('MQTT断开');
                 connected = false;
+                updateMqttStatus('connecting');  // 显示重连中
                 if (statusInterval) clearInterval(statusInterval);
             });
         }
@@ -362,7 +354,7 @@
                 clientId: clientId,
                 clean: true,
                 connectTimeout: 5000,
-                reconnectPeriod: 0  // 验证阶段不自动重连
+                reconnectPeriod: 5000  // 自动重连
             });
 
             mqttClient.on('connect', () => {
