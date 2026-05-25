@@ -284,9 +284,13 @@
 
                 verifyTimeout = setTimeout(() => {
                     if (!deviceVerified) {
-                        showToast('设备未响应，请检查网络', 'error');
+                        showToast('设备未响应，请检查设备ID和Token', 'error');
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 连接';
+                        if (mqttClient) {
+                            mqttClient.end();
+                            mqttClient = null;
+                        }
                     }
                 }, 3000);
             });
