@@ -269,7 +269,7 @@
                 clientId: clientId,
                 clean: true,
                 connectTimeout: 5000,
-                reconnectPeriod: 5000  // 自动重连
+                reconnectPeriod: 0  // 不自动重连，超时后彻底断开
             });
 
             mqttClient.on('connect', () => {
@@ -287,8 +287,9 @@
                         showToast('设备未响应，请检查设备ID和Token', 'error');
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 连接';
+                        updateMqttStatus('disconnected');
                         if (mqttClient) {
-                            mqttClient.end();
+                            mqttClient.end(true);  // 强制断开
                             mqttClient = null;
                         }
                     }
@@ -309,13 +310,13 @@
                 showToast('连接失败', 'error');
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> 连接';
+                updateMqttStatus('disconnected');
             });
 
             mqttClient.on('close', () => {
                 console.log('MQTT断开');
                 connected = false;
                 if (statusInterval) clearInterval(statusInterval);
-                // 自动重连时不显示断开提示
             });
         }
 
@@ -361,7 +362,7 @@
                 clientId: clientId,
                 clean: true,
                 connectTimeout: 5000,
-                reconnectPeriod: 5000  // 自动重连5秒
+                reconnectPeriod: 0  // 验证阶段不自动重连
             });
 
             mqttClient.on('connect', () => {
